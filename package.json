@@ -22,12 +22,31 @@
     "ui",
     "workspace"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onFileSystem:glimp"
+  ],
   "capabilities": {
     "virtualWorkspaces": true,
     "untrustedWorkspaces": {
       "supported": true
     }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "glimp.openRepository",
+        "title": "Open Repository",
+        "category": "Glimp",
+        "icon": "$(repo)"
+      }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "explorer",
+        "contents": "Browse a GitHub repository without cloning.\n[Open Repository](command:glimp.openRepository)",
+        "when": "workbenchState == empty"
+      }
+    ]
   },
   "scripts": {
     "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=es2022 --external:vscode --sourcemap --sources-content=false --legal-comments=none --outfile=dist/extension.js",
