@@ -1,7 +1,7 @@
 import { Octokit } from 'octokit';
 import type { Repository } from '../repository';
 import { GitHubError } from './githubError';
-import type { GitCommit, GitTree, RepositoryInfo } from './types';
+import type { GitBranch, GitCommit, GitTree, RepositoryInfo } from './types';
 
 export class GitHubClient {
   private octokit: Octokit | undefined;
@@ -59,6 +59,15 @@ export class GitHubClient {
         character.charCodeAt(0),
       );
     });
+  }
+
+  async getBranches(repository: Repository): Promise<GitBranch[]> {
+    return this.request((client) =>
+      client.paginate(client.rest.repos.listBranches, {
+        ...this.parameters(repository),
+        per_page: 100,
+      }),
+    );
   }
 
   private parameters(repository: Repository): { owner: string; repo: string } {

@@ -38,8 +38,23 @@
         "title": "Open Repository",
         "category": "Glimp",
         "icon": "$(repo)"
+      },
+      {
+        "command": "glimp.switchBranch",
+        "title": "Switch Branch",
+        "category": "Glimp",
+        "icon": "$(git-branch)"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "glimp.switchBranch",
+          "when": "resourceScheme == glimp",
+          "group": "glimp@2"
+        }
+      ]
+    },
     "viewsWelcome": [
       {
         "view": "explorer",

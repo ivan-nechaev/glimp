@@ -30,6 +30,7 @@ export class GlimpExtension {
       }),
     );
     this.register('glimp.openRepository', () => this.openRepository());
+    this.register('glimp.switchBranch', (uri) => this.switchBranch(uri));
   }
 
   private register(
@@ -80,6 +81,37 @@ export class GlimpExtension {
     this.openFolder(repository);
   }
 
+  private async switchBranch(uri?: Uri): Promise<void> {
+    const folder = await this.selectFolder(uri);
+
+    if (!folder) {
+      return;
+    }
+
+    const repository = Repository.fromUri(folder.uri);
+    const branches = await this.progress('Loading branches', () =>
+      this.client.getBranches(repository),
+    );
+    const selected = await window.showQuickPick(
+      branches.map((branch) => ({
+        label: branch.name,
+        description: branch.name === repository.ref ? 'Current branch' : '',
+      })),
+      {
+        title: `Glimp: ${repository.fullName}`,
+        placeHolder: 'Select a branch',
+      },
+    );
+
+    if (!selected || selected.label === repository.ref) {
+      return;
+    }
+
+    const next = repository.withRef(selected.label);
+    await this.progress('Opening branch', () => this.fileSystem.stat(next.uri));
+    this.openFolder(next, folder);
+  }
+
   private openFolder(repository: Repository, replace?: WorkspaceFolder): void {
     const existing = this.folders.find((folder) => {
       const current = Repository.fromUri(folder.uri);
@@ -104,6 +136,32 @@ export class GlimpExtension {
     if (!updated) {
       throw new Error('Could not update the workspace. Try again.');
     }
+  }
+
+  private async selectFolder(uri?: Uri): Promise<WorkspaceFolder | undefined> {
+    const target = uri ?? window.activeTextEditor?.document.uri;
+    const current = target ? workspace.getWorkspaceFolder(target) : undefined;
+
+    if (current?.uri.scheme === Repository.scheme) {
+      return current;
+    }
+
+    if (this.folders.length <= 1) {
+      if (this.folders.length === 0) {
+        void window.showInformationMessage(
+          'Open a repository with Glimp first.',
+        );
+      }
+
+      return this.folders[0];
+    }
+
+    const selected = await window.showQuickPick(
+      this.folders.map((folder) => ({ label: folder.name, folder })),
+      { title: 'Glimp: Select Repository' },
+    );
+
+    return selected?.folder;
   }
 
   private get folders(): readonly WorkspaceFolder[] {

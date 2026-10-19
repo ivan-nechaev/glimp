@@ -11,3 +11,7 @@ export type GitCommit = Awaited<
 export type GitTree = Awaited<ReturnType<Api['git']['getTree']>>['data'];
 
 export type GitTreeEntry = GitTree['tree'][number];
+
+export type GitBranch = Awaited<
+  ReturnType<Api['repos']['listBranches']>
+>['data'][number];
