@@ -31,6 +31,7 @@ export class GlimpExtension {
     );
     this.register('glimp.openRepository', () => this.openRepository());
     this.register('glimp.switchBranch', (uri) => this.switchBranch(uri));
+    this.register('glimp.refresh', (uri) => this.refresh(uri));
   }
 
   private register(
@@ -110,6 +111,17 @@ export class GlimpExtension {
     const next = repository.withRef(selected.label);
     await this.progress('Opening branch', () => this.fileSystem.stat(next.uri));
     this.openFolder(next, folder);
+  }
+
+  private async refresh(uri?: Uri): Promise<void> {
+    const folder = await this.selectFolder(uri);
+
+    if (folder) {
+      await this.progress('Refreshing repository', async () => {
+        this.fileSystem.refresh(folder.uri);
+        await this.fileSystem.stat(folder.uri);
+      });
+    }
   }
 
   private openFolder(repository: Repository, replace?: WorkspaceFolder): void {

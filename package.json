@@ -44,6 +44,12 @@
         "title": "Switch Branch",
         "category": "Glimp",
         "icon": "$(git-branch)"
+      },
+      {
+        "command": "glimp.refresh",
+        "title": "Refresh Repository",
+        "category": "Glimp",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -52,6 +58,11 @@
           "command": "glimp.switchBranch",
           "when": "resourceScheme == glimp",
           "group": "glimp@2"
+        },
+        {
+          "command": "glimp.refresh",
+          "when": "resourceScheme == glimp",
+          "group": "glimp@3"
         }
       ]
     },

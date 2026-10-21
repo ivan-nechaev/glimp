@@ -1,6 +1,7 @@
 import {
   Disposable,
   EventEmitter,
+  FileChangeType,
   FileSystemError,
   type FileChangeEvent,
   type FileStat,
@@ -55,6 +56,30 @@ export class GitHubFileSystem implements FileSystemProvider {
 
   release(uri: Uri): void {
     this.repositories.delete(uri.toString());
+  }
+
+  refresh(uri?: Uri): void {
+    const key = uri ? Repository.fromUri(uri).uri.toString() : undefined;
+    const events: FileChangeEvent[] = [];
+
+    for (const [id, remote] of this.repositories) {
+      if (key && key !== id) {
+        continue;
+      }
+
+      this.repositories.delete(id);
+
+      for (const path of remote.paths) {
+        events.push({
+          type: FileChangeType.Changed,
+          uri: path ? remote.repository.fileUri(path) : remote.repository.uri,
+        });
+      }
+    }
+
+    if (events.length > 0) {
+      this.changes.fire(events);
+    }
   }
 
   dispose(): void {
