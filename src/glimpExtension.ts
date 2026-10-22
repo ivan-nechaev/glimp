@@ -1,4 +1,5 @@
 import {
+  authentication,
   commands,
   ProgressLocation,
   window,
@@ -8,11 +9,15 @@ import {
   type WorkspaceFolder,
 } from 'vscode';
 import { GitHubFileSystem } from './filesystem/githubFileSystem';
+import { GitHubAuthentication } from './github/githubAuthentication';
 import { GitHubClient } from './github/githubClient';
 import { Repository } from './repository';
 
 export class GlimpExtension {
-  private readonly client = new GitHubClient(async () => undefined);
+  private readonly authentication = new GitHubAuthentication();
+  private readonly client = new GitHubClient(() =>
+    this.authentication.getToken(),
+  );
   private readonly fileSystem = new GitHubFileSystem(this.client);
 
   constructor(private readonly context: ExtensionContext) {}
@@ -28,10 +33,14 @@ export class GlimpExtension {
       workspace.onDidChangeWorkspaceFolders((event) => {
         for (const folder of event.removed) this.fileSystem.release(folder.uri);
       }),
+      authentication.onDidChangeSessions((event) => {
+        if (event.provider.id === 'github') this.fileSystem.refresh();
+      }),
     );
     this.register('glimp.openRepository', () => this.openRepository());
     this.register('glimp.switchBranch', (uri) => this.switchBranch(uri));
     this.register('glimp.refresh', (uri) => this.refresh(uri));
+    this.register('glimp.signIn', () => this.signIn());
   }
 
   private register(
@@ -122,6 +131,11 @@ export class GlimpExtension {
         await this.fileSystem.stat(folder.uri);
       });
     }
+  }
+
+  private async signIn(): Promise<void> {
+    await this.authentication.signIn();
+    this.fileSystem.refresh();
   }
 
   private openFolder(repository: Repository, replace?: WorkspaceFolder): void {

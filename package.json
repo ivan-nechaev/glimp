@@ -50,6 +50,11 @@
         "title": "Refresh Repository",
         "category": "Glimp",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "glimp.signIn",
+        "title": "Sign In to GitHub",
+        "category": "Glimp"
       }
     ],
     "menus": {
