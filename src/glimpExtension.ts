@@ -1,6 +1,8 @@
 import {
   authentication,
   commands,
+  env,
+  FileType,
   ProgressLocation,
   window,
   workspace,
@@ -41,6 +43,7 @@ export class GlimpExtension {
     this.register('glimp.switchBranch', (uri) => this.switchBranch(uri));
     this.register('glimp.refresh', (uri) => this.refresh(uri));
     this.register('glimp.signIn', () => this.signIn());
+    this.register('glimp.openOnGitHub', (uri) => this.openOnGitHub(uri));
   }
 
   private register(
@@ -136,6 +139,24 @@ export class GlimpExtension {
   private async signIn(): Promise<void> {
     await this.authentication.signIn();
     this.fileSystem.refresh();
+  }
+
+  private async openOnGitHub(uri?: Uri): Promise<void> {
+    let target = uri ?? window.activeTextEditor?.document.uri;
+
+    if (target?.scheme !== Repository.scheme) {
+      target = (await this.selectFolder())?.uri;
+    }
+
+    if (!target) {
+      return;
+    }
+
+    const repository = Repository.fromUri(target);
+    const path = Repository.pathFromUri(target);
+    const stat = await this.fileSystem.stat(target);
+    const directory = stat.type === FileType.Directory;
+    await env.openExternal(repository.browserUri(path, directory));
   }
 
   private openFolder(repository: Repository, replace?: WorkspaceFolder): void {

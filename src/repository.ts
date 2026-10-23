@@ -47,6 +47,18 @@ export class Repository {
     return this.uri.with({ path: `${this.uri.path}/${path}` });
   }
 
+  browserUri(path = '', directory = true): Uri {
+    const route = directory ? 'tree' : 'blob';
+    const ref = encodeURIComponent(this.ref);
+    const suffix = path
+      ? `/${path.split('/').map(encodeURIComponent).join('/')}`
+      : '';
+
+    return Uri.parse(
+      `https://github.com/${this.fullName}/${route}/${ref}${suffix}`,
+    );
+  }
+
   static parse(input: string): Repository {
     let value = input.trim();
 

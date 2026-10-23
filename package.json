@@ -55,10 +55,21 @@
         "command": "glimp.signIn",
         "title": "Sign In to GitHub",
         "category": "Glimp"
+      },
+      {
+        "command": "glimp.openOnGitHub",
+        "title": "Open on GitHub",
+        "category": "Glimp",
+        "icon": "$(link-external)"
       }
     ],
     "menus": {
       "explorer/context": [
+        {
+          "command": "glimp.openOnGitHub",
+          "when": "resourceScheme == glimp",
+          "group": "glimp@1"
+        },
         {
           "command": "glimp.switchBranch",
           "when": "resourceScheme == glimp",
