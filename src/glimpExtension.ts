@@ -4,6 +4,7 @@ import {
   env,
   FileType,
   ProgressLocation,
+  StatusBarAlignment,
   window,
   workspace,
   type ExtensionContext,
@@ -21,29 +22,44 @@ export class GlimpExtension {
     this.authentication.getToken(),
   );
   private readonly fileSystem = new GitHubFileSystem(this.client);
+  private readonly status = window.createStatusBarItem(
+    'glimp.branch',
+    StatusBarAlignment.Left,
+    100,
+  );
 
   constructor(private readonly context: ExtensionContext) {}
+
   activate(): void {
     this.context.subscriptions.push(
       this.fileSystem,
-
+      this.status,
       workspace.registerFileSystemProvider(Repository.scheme, this.fileSystem, {
         isCaseSensitive: true,
         isReadonly: true,
       }),
-
+      window.onDidChangeActiveTextEditor(() => this.updateStatus()),
       workspace.onDidChangeWorkspaceFolders((event) => {
-        for (const folder of event.removed) this.fileSystem.release(folder.uri);
+        for (const folder of event.removed) {
+          this.fileSystem.release(folder.uri);
+        }
+
+        this.updateStatus();
       }),
       authentication.onDidChangeSessions((event) => {
-        if (event.provider.id === 'github') this.fileSystem.refresh();
+        if (event.provider.id === 'github') {
+          this.fileSystem.refresh();
+        }
       }),
     );
+
     this.register('glimp.openRepository', () => this.openRepository());
     this.register('glimp.switchBranch', (uri) => this.switchBranch(uri));
     this.register('glimp.refresh', (uri) => this.refresh(uri));
     this.register('glimp.signIn', () => this.signIn());
     this.register('glimp.openOnGitHub', (uri) => this.openOnGitHub(uri));
+    this.status.command = 'glimp.switchBranch';
+    this.updateStatus();
   }
 
   private register(
@@ -209,6 +225,35 @@ export class GlimpExtension {
     );
 
     return selected?.folder;
+  }
+
+  private updateStatus(): void {
+    if (this.folders.length === 0) {
+      this.status.hide();
+      return;
+    }
+
+    const editor = window.activeTextEditor;
+    const active = editor
+      ? workspace.getWorkspaceFolder(editor.document.uri)
+      : undefined;
+    const folder =
+      active?.uri.scheme === Repository.scheme
+        ? active
+        : this.folders.length === 1
+          ? this.folders[0]
+          : undefined;
+
+    if (folder) {
+      const repository = Repository.fromUri(folder.uri);
+      this.status.text = `$(git-branch) ${repository.ref}`;
+      this.status.tooltip = `Glimp: ${repository.fullName}\nSwitch branch`;
+    } else {
+      this.status.text = '$(repo) Glimp';
+      this.status.tooltip = 'Select a repository and switch branch';
+    }
+
+    this.status.show();
   }
 
   private get folders(): readonly WorkspaceFolder[] {
