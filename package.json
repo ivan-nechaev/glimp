@@ -18,6 +18,7 @@
     "readonly"
   ],
   "main": "./dist/extension.js",
+  "browser": "./dist/extension.js",
   "extensionKind": [
     "ui",
     "workspace"
@@ -91,7 +92,7 @@
     ]
   },
   "scripts": {
-    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=es2022 --external:vscode --sourcemap --sources-content=false --legal-comments=none --outfile=dist/extension.js",
+    "build": "esbuild src/extension.ts --bundle --platform=browser --format=cjs --target=es2022 --external:vscode --sourcemap --sources-content=false --legal-comments=none --outfile=dist/extension.js",
     "watch": "npm run build -- --watch",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write src package.json tsconfig.json .prettierrc.json .vscode",
