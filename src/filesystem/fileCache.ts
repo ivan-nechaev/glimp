@@ -2,7 +2,12 @@ export class FileCache {
   private readonly entries = new Map<string, Uint8Array>();
   private size = 0;
 
-  constructor(private readonly limit = 32 * 1024 * 1024) {}
+  constructor(private limit = 32 * 1024 * 1024) {}
+
+  resize(limit: number): void {
+    this.limit = limit;
+    this.evict();
+  }
 
   get(key: string): Uint8Array | undefined {
     const value = this.entries.get(key);
@@ -23,12 +28,22 @@ export class FileCache {
       this.entries.delete(key);
     }
 
-    if (value.byteLength > this.limit) {
+    if (this.limit === 0 || value.byteLength > this.limit) {
       return;
     }
 
     this.entries.set(key, value);
     this.size += value.byteLength;
+
+    this.evict();
+  }
+
+  private evict(): void {
+    if (this.limit === 0) {
+      this.entries.clear();
+      this.size = 0;
+      return;
+    }
 
     for (const [oldestKey, oldestValue] of this.entries) {
       if (this.size <= this.limit) {

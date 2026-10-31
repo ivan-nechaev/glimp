@@ -15,13 +15,19 @@ import { GitHubFileSystem } from './filesystem/githubFileSystem';
 import { GitHubAuthentication } from './github/githubAuthentication';
 import { GitHubClient } from './github/githubClient';
 import { Repository } from './repository';
+import { GlimpSettings } from './settings';
 
 export class GlimpExtension {
+  private readonly settings = new GlimpSettings();
   private readonly authentication = new GitHubAuthentication();
-  private readonly client = new GitHubClient(() =>
-    this.authentication.getToken(),
+  private readonly client = new GitHubClient(
+    () => this.authentication.getToken(),
+    this.settings,
   );
-  private readonly fileSystem = new GitHubFileSystem(this.client);
+  private readonly fileSystem = new GitHubFileSystem(
+    this.client,
+    this.settings,
+  );
   private readonly status = window.createStatusBarItem(
     'glimp.branch',
     StatusBarAlignment.Left,
@@ -46,6 +52,11 @@ export class GlimpExtension {
 
         this.updateStatus();
       }),
+      workspace.onDidChangeConfiguration((event) => {
+        if (event.affectsConfiguration('glimp.cacheSize')) {
+          this.fileSystem.resizeCaches();
+        }
+      }),
       authentication.onDidChangeSessions((event) => {
         if (event.provider.id === 'github') {
           this.fileSystem.refresh();
@@ -58,6 +69,7 @@ export class GlimpExtension {
     this.register('glimp.refresh', (uri) => this.refresh(uri));
     this.register('glimp.signIn', () => this.signIn());
     this.register('glimp.openOnGitHub', (uri) => this.openOnGitHub(uri));
+    this.register('glimp.openSettings', () => this.openSettings());
     this.status.command = 'glimp.switchBranch';
     this.updateStatus();
   }
@@ -102,7 +114,9 @@ export class GlimpExtension {
     const repository = await this.progress('Opening repository', async () => {
       const address = Repository.parse(input);
       const info = await this.client.getRepository(address);
-      const resolved = address.withRef(info.default_branch);
+      const resolved = address.withRef(
+        this.settings.defaultBranch || info.default_branch,
+      );
       await this.fileSystem.stat(resolved.uri);
       return resolved;
     });
@@ -155,6 +169,13 @@ export class GlimpExtension {
   private async signIn(): Promise<void> {
     await this.authentication.signIn();
     this.fileSystem.refresh();
+  }
+
+  private async openSettings(): Promise<void> {
+    await commands.executeCommand(
+      'workbench.action.openSettings',
+      `@ext:${this.context.extension.id}`,
+    );
   }
 
   private async openOnGitHub(uri?: Uri): Promise<void> {

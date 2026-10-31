@@ -12,6 +12,7 @@ import {
 import type { GitHubClient } from '../github/githubClient';
 import { GitHubError } from '../github/githubError';
 import { Repository } from '../repository';
+import type { GlimpSettings } from '../settings';
 import { RemoteRepository } from './remoteRepository';
 
 export class GitHubFileSystem implements FileSystemProvider {
@@ -20,7 +21,18 @@ export class GitHubFileSystem implements FileSystemProvider {
 
   readonly onDidChangeFile = this.changes.event;
 
-  constructor(private readonly client: GitHubClient) {}
+  constructor(
+    private readonly client: GitHubClient,
+    private readonly settings: GlimpSettings,
+  ) {}
+
+  resizeCaches(): void {
+    const size = this.settings.cacheSize;
+
+    for (const remote of this.repositories.values()) {
+      remote.resizeCache(size);
+    }
+  }
 
   stat(uri: Uri): Promise<FileStat> {
     return this.access(uri, (remote, path) => remote.stat(path));
@@ -97,7 +109,7 @@ export class GitHubFileSystem implements FileSystemProvider {
       let remote = this.repositories.get(key);
 
       if (!remote) {
-        remote = new RemoteRepository(repository, this.client);
+        remote = new RemoteRepository(repository, this.client, this.settings);
         this.repositories.set(key, remote);
       }
 

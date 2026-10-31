@@ -7,22 +7,28 @@ import {
 import type { GitHubClient } from '../github/githubClient';
 import type { GitCommit, GitTree, GitTreeEntry } from '../github/types';
 import type { Repository } from '../repository';
+import type { GlimpSettings } from '../settings';
 import { FileCache } from './fileCache';
 
 export class RemoteRepository {
-  static readonly maxFileSize = 10 * 1024 * 1024;
-
   readonly paths = new Set(['']);
 
   private snapshot: Promise<GitCommit> | undefined;
   private readonly trees = new Map<string, Promise<GitTree>>();
   private readonly pendingFiles = new Map<string, Promise<Uint8Array>>();
-  private readonly files = new FileCache();
+  private readonly files: FileCache;
 
   constructor(
     readonly repository: Repository,
     private readonly client: GitHubClient,
-  ) {}
+    private readonly settings: GlimpSettings,
+  ) {
+    this.files = new FileCache(settings.cacheSize);
+  }
+
+  resizeCache(limit: number): void {
+    this.files.resize(limit);
+  }
 
   async stat(path: string): Promise<FileStat> {
     this.paths.add(path);
@@ -78,39 +84,39 @@ export class RemoteRepository {
       return this.submoduleContent(entry);
     }
 
-    if ((entry.size ?? 0) > RemoteRepository.maxFileSize) {
-      throw FileSystemError.Unavailable(
-        'Files larger than 10 MiB are not supported.',
-      );
+    const limit = this.settings.maxFileSize;
+    const message = `File exceeds the ${limit / 1024 / 1024} MiB size limit.`;
+
+    if ((entry.size ?? 0) > limit) {
+      throw FileSystemError.Unavailable(message);
     }
 
     const cached = this.files.get(entry.sha);
+    const content = cached ?? (await this.getBlob(entry.sha));
 
-    if (cached) {
-      return cached.slice();
+    if (content.byteLength > limit) {
+      throw FileSystemError.Unavailable(message);
     }
 
-    let pending = this.pendingFiles.get(entry.sha);
+    if (!cached) {
+      this.files.set(entry.sha, content);
+    }
+
+    return content.slice();
+  }
+
+  private getBlob(sha: string): Promise<Uint8Array> {
+    let pending = this.pendingFiles.get(sha);
 
     if (!pending) {
       pending = this.client
-        .getBlob(this.repository, entry.sha)
-        .then((content) => {
-          if (content.byteLength > RemoteRepository.maxFileSize) {
-            throw FileSystemError.Unavailable(
-              'Files larger than 10 MiB are not supported.',
-            );
-          }
+        .getBlob(this.repository, sha)
+        .finally(() => this.pendingFiles.delete(sha));
 
-          this.files.set(entry.sha, content);
-          return content;
-        })
-        .finally(() => this.pendingFiles.delete(entry.sha));
-
-      this.pendingFiles.set(entry.sha, pending);
+      this.pendingFiles.set(sha, pending);
     }
 
-    return (await pending).slice();
+    return pending;
   }
 
   private getSnapshot(): Promise<GitCommit> {

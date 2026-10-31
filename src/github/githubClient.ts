@@ -1,5 +1,6 @@
 import { Octokit } from 'octokit';
 import type { Repository } from '../repository';
+import type { GlimpSettings } from '../settings';
 import { GitHubError } from './githubError';
 import type { GitBranch, GitCommit, GitTree, RepositoryInfo } from './types';
 
@@ -7,7 +8,10 @@ export class GitHubClient {
   private octokit: Octokit | undefined;
   private token: string | undefined;
 
-  constructor(private readonly getToken: () => Promise<string | undefined>) {}
+  constructor(
+    private readonly getToken: () => Promise<string | undefined>,
+    private readonly settings: GlimpSettings,
+  ) {}
 
   async getRepository(repository: Repository): Promise<RepositoryInfo> {
     return this.request(async (client) => {
@@ -88,7 +92,7 @@ export class GitHubClient {
       this.octokit.hook.before('request', (options) => {
         options.request = {
           ...options.request,
-          signal: AbortSignal.timeout(15_000),
+          signal: AbortSignal.timeout(this.settings.requestTimeout),
         };
       });
     }
